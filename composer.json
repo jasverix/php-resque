@@ -22,6 +22,9 @@
 		"colinmollenhour/credis": "~1.7",
 		"psr/log": "~1.0"
 	},
+	"replace": {
+		"chrisboulton/php-resque": "dev-master"
+	},
 	"suggest": {
 		"ext-proctitle": "Allows php-resque to rename the title of UNIX processes to show the status of a worker.",
 		"ext-redis": "Native PHP extension for Redis connectivity. Credis will automatically utilize when available."
