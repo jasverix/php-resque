@@ -232,7 +232,12 @@ class Resque
 			return false;
 		}
 
-		Resque_Job::create($queue, $class, $args, $trackStatus, $id);
+		$id = Resque_Job::create($queue, $class, $args, $trackStatus, $id);
+		if ($id === false) {
+		    return false;
+        }
+
+        $hookParams['id'] = $id;
 		Resque_Event::trigger('afterEnqueue', $hookParams);
 
 		return $id;
@@ -242,7 +247,7 @@ class Resque
 	 * Reserve and return the next available job in the specified queue.
 	 *
 	 * @param string $queue Queue to fetch next available job from.
-	 * @return Resque_Job Instance of Resque_Job to be processed, false if none or error.
+	 * @return Resque_Job|boolean Instance of Resque_Job to be processed, false if none or error.
 	 */
 	public static function reserve($queue)
 	{

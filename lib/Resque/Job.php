@@ -68,18 +68,23 @@ class Resque_Job
 				'Supplied $args must be an array.'
 			);
 		}
-		Resque::push($queue, array(
+
+		$success = Resque::push($queue, array(
 			'class'	=> $class,
 			'args'	=> array($args),
 			'id'	=> $id,
 			'queue_time' => microtime(true),
 		));
 
-		if($monitor) {
-			Resque_Job_Status::create($id);
-		}
+		if($success) {
+            if ($monitor) {
+                Resque_Job_Status::create($id);
+            }
 
-		return $id;
+            return $id;
+        }
+
+        return false;
 	}
 
 	/**
