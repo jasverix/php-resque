@@ -239,7 +239,7 @@ class Resque_Worker
 			Resque_Event::trigger('afterFork', $job);
 			$job->perform();
 		}
-		catch(Exception $e) {
+		catch(Throwable $e) {
 			$this->logger->log(Psr\Log\LogLevel::CRITICAL, '{job} has failed {stack}', array('job' => $job, 'stack' => $e));
 			$job->fail($e);
 			return;
