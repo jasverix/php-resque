@@ -89,7 +89,7 @@ class Resque_Job
 	 * instance of Resque_Job for it.
 	 *
 	 * @param string $queue The name of the queue to check for a job in.
-	 * @return false|object Null when there aren't any waiting jobs, instance of Resque_Job when a job was found.
+	 * @return false|static Null when there aren't any waiting jobs, instance of Resque_Job when a job was found.
 	 */
 	public static function reserve($queue)
 	{
@@ -98,7 +98,7 @@ class Resque_Job
 			return false;
 		}
 
-		return new Resque_Job($queue, $payload);
+		return new static($queue, $payload);
 	}
 
 	/**
@@ -107,7 +107,7 @@ class Resque_Job
 	 *
 	 * @param array             $queues
 	 * @param int               $timeout
-	 * @return false|object Null when there aren't any waiting jobs, instance of Resque_Job when a job was found.
+	 * @return false|static Null when there aren't any waiting jobs, instance of Resque_Job when a job was found.
 	 */
 	public static function reserveBlocking(array $queues, $timeout = null)
 	{
@@ -117,7 +117,7 @@ class Resque_Job
 			return false;
 		}
 
-		return new Resque_Job($item['queue'], $item['payload']);
+		return new static($item['queue'], $item['payload']);
 	}
 
 	/**
@@ -277,8 +277,15 @@ class Resque_Job
 			$name[] = 'ID: ' . $this->payload['id'];
 		}
 		$name[] = $this->payload['class'];
-		if(!empty($this->payload['args'])) {
-			$name[] = json_encode($this->payload['args']);
+		if(!empty($this->payload['args']) && is_array($this->payload['args'])) {
+			$name[] = json_encode(array_map(static function($arg) {
+                // limit outputted argument length
+                if(strlen($arg) > 100) {
+                    return substr($arg, 0, 100);
+                }
+
+                return $arg;
+            }, $this->payload['args']));
 		}
 		return '(' . implode(' | ', $name) . ')';
 	}
