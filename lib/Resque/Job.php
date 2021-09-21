@@ -279,6 +279,10 @@ class Resque_Job
 		$name[] = $this->payload['class'];
 		if(!empty($this->payload['args']) && is_array($this->payload['args'])) {
             $mapper = static function ($arg) use(&$mapper) {
+                if($arg === null || $arg === '') {
+                    return '';
+                }
+
                 if(is_array($arg)) {
                     return array_map($mapper, $arg);
                 }
