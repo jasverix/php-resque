@@ -278,14 +278,24 @@ class Resque_Job
 		}
 		$name[] = $this->payload['class'];
 		if(!empty($this->payload['args']) && is_array($this->payload['args'])) {
-			$name[] = json_encode(array_map(static function($arg) {
+            $mapper = static function ($arg) use(&$mapper) {
+                if(is_array($arg)) {
+                    return array_map($mapper, $arg);
+                }
+
+                if(!is_scalar($arg) && !($arg instanceof Stringable)) {
+                    return get_class($arg);
+                }
+
                 // limit outputted argument length
-                if(strlen($arg) > 100) {
+                if (strlen($arg) > 100) {
                     return substr($arg, 0, 100);
                 }
 
                 return $arg;
-            }, $this->payload['args']));
+            };
+
+            $name[] = json_encode(array_map($mapper, $this->payload['args']));
 		}
 		return '(' . implode(' | ', $name) . ')';
 	}
