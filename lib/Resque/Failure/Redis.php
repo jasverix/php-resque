@@ -16,7 +16,8 @@ class Resque_Failure_Redis implements Resque_Failure_Interface
 	 * @param object $exception Instance of the exception that was thrown by the failed job.
 	 * @param object $worker Instance of Resque_Worker that received the job.
 	 * @param string $queue The name of the queue the job was fetched from.
-	 */
+     * @noinspection PhpUndefinedMethodInspection
+     */
 	public function __construct($payload, $exception, $worker, $queue)
 	{
 		$data = new stdClass;
@@ -27,7 +28,11 @@ class Resque_Failure_Redis implements Resque_Failure_Interface
 		$data->backtrace = explode("\n", $exception->getTraceAsString());
 		$data->worker = (string)$worker;
 		$data->queue = $queue;
-		$data = json_encode($data);
-		Resque::redis()->rpush('failed', $data);
+        try {
+            $data = json_encode($data, JSON_THROW_ON_ERROR);
+            Resque::redis()?->rpush('failed:' . date('Y-m-d'), $data);
+            Resque::redis()?->expire('failed:' . date('Y-m-d'), 7 * 24 * 3600);
+        } catch (JsonException) {
+        }
 	}
 }
