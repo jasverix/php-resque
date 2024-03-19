@@ -1,16 +1,23 @@
 <?php
+
+namespace Resque;
+
+use Resque\Exceptions\ResqueException;
+use Resque\Exceptions\InvalidTimestampException;
+use DateTime;
+
 /**
-* ResqueScheduler core class to handle scheduling of jobs in the future.
+* Resque scheduler core class to handle scheduling of jobs in the future.
 *
-* @package		ResqueScheduler
+* @package		Resque/Scheduler
 * @author		Chris Boulton <chris@bigcommerce.com>
 * @copyright	(c) 2012 Chris Boulton
 * @license		http://www.opensource.org/licenses/mit-license.php
 */
-class ResqueScheduler
+class Scheduler
 {
 	const VERSION = "0.1";
-	
+
 	/**
 	 * Enqueue a job in a given number of seconds from now.
 	 *
@@ -34,7 +41,7 @@ class ResqueScheduler
 	 * (either UNIX timestamp in integer format or an instance of the DateTime
 	 * class in PHP).
 	 *
-	 * @param DateTime|int $at Instance of PHP DateTime object or int of UNIX timestamp.
+	 * @param \DateTime|int $at Instance of PHP DateTime object or int of UNIX timestamp.
 	 * @param string $queue The name of the queue to place the job in.
 	 * @param string $class The name of the class that contains the code to execute the job.
 	 * @param array $args Any optional arguments that should be passed when the job is executed.
@@ -45,8 +52,8 @@ class ResqueScheduler
 
 		$job = self::jobToHash($queue, $class, $args);
 		self::delayedPush($at, $job);
-		
-		Resque_Event::trigger('afterSchedule', array(
+
+		Event::trigger('afterSchedule', array(
 			'at'    => $at,
 			'queue' => $queue,
 			'class' => $class,
@@ -57,7 +64,7 @@ class ResqueScheduler
 	/**
 	 * Directly append an item to the delayed queue schedule.
 	 *
-	 * @param DateTime|int $timestamp Timestamp job is scheduled to be run at.
+	 * @param \DateTime|int $timestamp Timestamp job is scheduled to be run at.
 	 * @param array $item Hash of item to be pushed to schedule.
 	 */
 	public static function delayedPush($timestamp, $item)
@@ -82,7 +89,7 @@ class ResqueScheduler
 	/**
 	 * Get the number of jobs for a given timestamp in the delayed schedule.
 	 *
-	 * @param DateTime|int $timestamp Timestamp
+	 * @param \DateTime|int $timestamp Timestamp
 	 * @return int Number of scheduled jobs.
 	 */
 	public static function getDelayedTimestampSize($timestamp)
@@ -91,60 +98,59 @@ class ResqueScheduler
 		return Resque::redis()->llen('delayed:' . $timestamp, $timestamp);
 	}
 
-    /**
-     * Remove a delayed job from the queue
-     *
-     * note: you must specify exactly the same
-     * queue, class and arguments that you used when you added
-     * to the delayed queue
-     *
-     * also, this is an expensive operation because all delayed keys have tobe
-     * searched
-     *
-     * @param $queue
-     * @param $class
-     * @param $args
-     * @return int number of jobs that were removed
-     */
-    public static function removeDelayed($queue, $class, $args)
-    {
-       $destroyed=0;
-       $item=json_encode(self::jobToHash($queue, $class, $args));
-       $redis=Resque::redis();
+	/**
+	 * Remove a delayed job from the queue
+	 *
+	 * note: you must specify exactly the same
+	 * queue, class and arguments that you used when you added
+	 * to the delayed queue
+	 *
+	 * also, this is an expensive operation because all delayed keys have tobe
+	 * searched
+	 *
+	 * @param $queue
+	 * @param $class
+	 * @param $args
+	 * @return int number of jobs that were removed
+	 */
+	public static function removeDelayed($queue, $class, $args)
+	{
+		$destroyed = 0;
+		$item = json_encode(self::jobToHash($queue, $class, $args));
+		$redis = Resque::redis();
 
-       foreach($redis->keys('delayed:*') as $key)
-       {
-           $key=$redis->removePrefix($key);
-           $destroyed+=$redis->lrem($key,0,$item);
-       }
+		foreach ($redis->keys('delayed:*') as $key) {
+			$key = $redis->removePrefix($key);
+			$destroyed += $redis->lrem($key, 0, $item);
+		}
 
-       return $destroyed;
-    }
+		return $destroyed;
+	}
 
-    /**
-     * removed a delayed job queued for a specific timestamp
-     *
-     * note: you must specify exactly the same
-     * queue, class and arguments that you used when you added
-     * to the delayed queue
-     *
-     * @param $timestamp
-     * @param $queue
-     * @param $class
-     * @param $args
-     * @return mixed
-     */
-    public static function removeDelayedJobFromTimestamp($timestamp, $queue, $class, $args)
-    {
-        $key = 'delayed:' . self::getTimestamp($timestamp);
-        $item = json_encode(self::jobToHash($queue, $class, $args));
-        $redis = Resque::redis();
-        $count = $redis->lrem($key, 0, $item);
-        self::cleanupTimestamp($key, $timestamp);
+	/**
+	 * removed a delayed job queued for a specific timestamp
+	 *
+	 * note: you must specify exactly the same
+	 * queue, class and arguments that you used when you added
+	 * to the delayed queue
+	 *
+	 * @param $timestamp
+	 * @param $queue
+	 * @param $class
+	 * @param $args
+	 * @return mixed
+	 */
+	public static function removeDelayedJobFromTimestamp($timestamp, $queue, $class, $args)
+	{
+		$key = 'delayed:' . self::getTimestamp($timestamp);
+		$item = json_encode(self::jobToHash($queue, $class, $args));
+		$redis = Resque::redis();
+		$count = $redis->lrem($key, 0, $item);
+		self::cleanupTimestamp($key, $timestamp);
 
-        return $count;
-    }
-	
+		return $count;
+	}
+
 	/**
 	 * Generate hash of all job properties to be saved in the scheduled queue.
 	 *
@@ -185,18 +191,18 @@ class ResqueScheduler
 	/**
 	 * Convert a timestamp in some format in to a unix timestamp as an integer.
 	 *
-	 * @param DateTime|int $timestamp Instance of DateTime or UNIX timestamp.
+	 * @param \DateTime|int $timestamp Instance of DateTime or UNIX timestamp.
 	 * @return int Timestamp
-	 * @throws ResqueScheduler_InvalidTimestampException
+	 * @throws Scheduler_InvalidTimestampException
 	 */
 	private static function getTimestamp($timestamp)
 	{
 		if ($timestamp instanceof DateTime) {
 			$timestamp = $timestamp->getTimestamp();
 		}
-		
+
 		if ((int)$timestamp != $timestamp) {
-			throw new ResqueScheduler_InvalidTimestampException(
+			throw new InvalidTimestampException(
 				'The supplied timestamp value could not be converted to an integer.'
 			);
 		}
@@ -208,11 +214,11 @@ class ResqueScheduler
 	 * Find the first timestamp in the delayed schedule before/including the timestamp.
 	 *
 	 * Will find and return the first timestamp upto and including the given
-	 * timestamp. This is the heart of the ResqueScheduler that will make sure
+	 * timestamp. This is the heart of the Scheduler that will make sure
 	 * that any jobs scheduled for the past when the worker wasn't running are
 	 * also queued up.
 	 *
-	 * @param DateTime|int $timestamp Instance of DateTime or UNIX timestamp.
+	 * @param \DateTime|int $timestamp Instance of DateTime or UNIX timestamp.
 	 *                                Defaults to now.
 	 * @return int|false UNIX timestamp, or false if nothing to run.
 	 */
@@ -220,32 +226,31 @@ class ResqueScheduler
 	{
 		if ($at === null) {
 			$at = time();
-		}
-		else {
+		} else {
 			$at = self::getTimestamp($at);
 		}
-	
+
 		$items = Resque::redis()->zrangebyscore('delayed_queue_schedule', '-inf', $at, array('limit' => array(0, 1)));
 		if (!empty($items)) {
 			return $items[0];
 		}
-		
+
 		return false;
-	}	
-	
+	}
+
 	/**
 	 * Pop a job off the delayed queue for a given timestamp.
 	 *
-	 * @param DateTime|int $timestamp Instance of DateTime or UNIX timestamp.
+	 * @param \DateTime|int $timestamp Instance of DateTime or UNIX timestamp.
 	 * @return array Matching job at timestamp.
 	 */
 	public static function nextItemForTimestamp($timestamp)
 	{
 		$timestamp = self::getTimestamp($timestamp);
 		$key = 'delayed:' . $timestamp;
-		
+
 		$item = json_decode(Resque::redis()->lpop($key), true);
-		
+
 		self::cleanupTimestamp($key, $timestamp);
 		return $item;
 	}
@@ -255,17 +260,16 @@ class ResqueScheduler
 	 *
 	 * @param string $class Name of job class.
 	 * @param string $queue Name of queue.
-	 * @throws Resque_Exception
+	 * @throws \Resque\Exceptions\ResqueException
 	 */
 	private static function validateJob($class, $queue)
 	{
 		if (empty($class)) {
-			throw new Resque_Exception('Jobs must be given a class.');
+			throw new ResqueException('Jobs must be given a class.');
+		} elseif (empty($queue)) {
+			throw new ResqueException('Jobs must be put in a queue.');
 		}
-		else if (empty($queue)) {
-			throw new Resque_Exception('Jobs must be put in a queue.');
-		}
-		
+
 		return true;
 	}
 }

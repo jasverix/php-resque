@@ -1,4 +1,13 @@
 <?php
+
+namespace Resque;
+
+use Credis_Client;
+use Credis_Cluster;
+use CredisException;
+use Resque\Exceptions\RedisException;
+use InvalidArgumentException;
+
 /**
  * Wrap Credis to add namespace support and various helper methods.
  *
@@ -6,7 +15,7 @@
  * @author		Chris Boulton <chris@bigcommerce.com>
  * @license		http://www.opensource.org/licenses/mit-license.php
  */
-class Resque_Redis
+class Redis
 {
 	/**
 	 * Redis namespace
@@ -104,10 +113,10 @@ class Resque_Redis
 	 */
 	public static function prefix($namespace)
 	{
-	    if (substr($namespace, -1) !== ':' && $namespace != '') {
-	        $namespace .= ':';
-	    }
-	    self::$defaultNamespace = $namespace;
+		if (substr($namespace, -1) !== ':' && $namespace != '') {
+			$namespace .= ':';
+		}
+		self::$defaultNamespace = $namespace;
 	}
 
 	/**
@@ -116,19 +125,16 @@ class Resque_Redis
 	 *                      DSN-supplied value will be used instead and this parameter is ignored.
 	 * @param object $client Optional Credis_Cluster or Credis_Client instance instantiated by you
 	 */
-    public function __construct($server, $database = null, $client = null)
+	public function __construct($server, $database = null, $client = null)
 	{
 		try {
 			if (is_object($client)) {
 				$this->driver = $client;
-			}
-			elseif (is_object($server)) {
+			} elseif (is_object($server)) {
 				$this->driver = $server;
-			}
-			elseif (is_array($server)) {
+			} elseif (is_array($server)) {
 				$this->driver = new Credis_Cluster($server);
-			}
-			else {
+			} else {
 				list($host, $port, $dsnDatabase, $user, $password, $options) = self::parseDsn($server);
 				// $user is not used, only $password
 
@@ -139,7 +145,7 @@ class Resque_Redis
 
 				$this->driver = new Credis_Client($host, $port, $timeout, $persistent);
 				$this->driver->setMaxConnectRetries($maxRetries);
-				if ($password){
+				if ($password) {
 					$this->driver->auth($password);
 				}
 
@@ -153,9 +159,8 @@ class Resque_Redis
 			if ($database !== null) {
 				$this->driver->select($database);
 			}
-		}
-		catch(CredisException $e) {
-			throw new Resque_RedisException('Error communicating with Redis: ' . $e->getMessage(), 0, $e);
+		} catch (CredisException $e) {
+			throw new RedisException('Error communicating with Redis: ' . $e->getMessage(), 0, $e);
 		}
 	}
 
@@ -179,7 +184,7 @@ class Resque_Redis
 			// Use a sensible default for an empty DNS string
 			$dsn = 'redis://' . self::DEFAULT_HOST;
 		}
-		if(substr($dsn, 0, 7) === 'unix://') {
+		if (substr($dsn, 0, 7) === 'unix://') {
 			return array(
 				$dsn,
 				null,
@@ -194,11 +199,11 @@ class Resque_Redis
 		// Check the URI scheme
 		$validSchemes = array('redis', 'tcp');
 		if (isset($parts['scheme']) && ! in_array($parts['scheme'], $validSchemes)) {
-			throw new \InvalidArgumentException("Invalid DSN. Supported schemes are " . implode(', ', $validSchemes));
+			throw new InvalidArgumentException("Invalid DSN. Supported schemes are " . implode(', ', $validSchemes));
 		}
 
 		// Allow simple 'hostname' format, which `parse_url` treats as a path, not host.
-		if ( ! isset($parts['host']) && isset($parts['path'])) {
+		if (! isset($parts['host']) && isset($parts['path'])) {
 			$parts['host'] = $parts['path'];
 			unset($parts['path']);
 		}
@@ -224,15 +229,13 @@ class Resque_Redis
 		}
 
 		//check 'password-encoding' parameter and extracting password based on encoding
-		if($options && isset($options['password-encoding']) && $options['password-encoding'] === 'u'){
+		if ($options && isset($options['password-encoding']) && $options['password-encoding'] === 'u') {
 			//extracting urlencoded password
 			$pass = isset($parts['pass']) ? urldecode($parts['pass']) : false;
-		}
-		else if($options && isset($options['password-encoding']) && $options['password-encoding'] === 'b'){
+		} elseif ($options && isset($options['password-encoding']) && $options['password-encoding'] === 'b') {
 			//extracting base64 encoded password
 			$pass = isset($parts['pass']) ? base64_decode($parts['pass']) : false;
-		}
-		else{
+		} else {
 			//extracting pass directly since 'password-encoding' parameter is not present
 			$pass = isset($parts['pass']) ? $parts['pass'] : false;
 		}
@@ -259,34 +262,32 @@ class Resque_Redis
 	{
 		if (in_array($name, $this->keyCommands)) {
 			if (is_array($args[0])) {
-				foreach ($args[0] AS $i => $v) {
+				foreach ($args[0] as $i => $v) {
 					$args[0][$i] = self::$defaultNamespace . $v;
 				}
-			}
-			else {
+			} else {
 				$args[0] = self::$defaultNamespace . $args[0];
 			}
 		}
 		try {
 			return $this->driver->__call($name, $args);
-		}
-		catch (CredisException $e) {
-			throw new Resque_RedisException('Error communicating with Redis: ' . $e->getMessage(), 0, $e);
+		} catch (CredisException $e) {
+			throw new RedisException('Error communicating with Redis: ' . $e->getMessage(), 0, $e);
 		}
 	}
 
 	public static function getPrefix()
 	{
-	    return self::$defaultNamespace;
+		return self::$defaultNamespace;
 	}
 
 	public static function removePrefix($string)
 	{
-	    $prefix=self::getPrefix();
+		$prefix = self::getPrefix();
 
-	    if (substr($string, 0, strlen($prefix)) == $prefix) {
-	        $string = substr($string, strlen($prefix), strlen($string) );
-	    }
-	    return $string;
+		if (substr($string, 0, strlen($prefix)) == $prefix) {
+			$string = substr($string, strlen($prefix), strlen($string));
+		}
+		return $string;
 	}
 }

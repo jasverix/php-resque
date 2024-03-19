@@ -1,4 +1,10 @@
 <?php
+
+namespace Resque;
+
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
+
 /**
  * Resque default logger PSR-3 compliant
  *
@@ -6,11 +12,12 @@
  * @author		Chris Boulton <chris@bigcommerce.com>
  * @license		http://www.opensource.org/licenses/mit-license.php
  */
-class Resque_Log extends Psr\Log\AbstractLogger 
+class Logger extends AbstractLogger
 {
 	public $verbose;
 
-	public function __construct($verbose = false) {
+	public function __construct($verbose = false)
+	{
 		$this->verbose = $verbose;
 	}
 
@@ -27,12 +34,12 @@ class Resque_Log extends Psr\Log\AbstractLogger
 		if ($this->verbose) {
 			fwrite(
 				STDOUT,
-				'[' . $level . '] [' . strftime('%T %Y-%m-%d') . '] ' . $this->interpolate($message, $context) . PHP_EOL
+				'[' . $level . '] [' . date('H:i:s Y-m-d') . '] ' . $this->interpolate($message, $context) . PHP_EOL
 			);
 			return;
 		}
 
-		if (!($level === Psr\Log\LogLevel::INFO || $level === Psr\Log\LogLevel::DEBUG)) {
+		if (!($level === LogLevel::INFO || $level === LogLevel::DEBUG)) {
 			fwrite(
 				STDOUT,
 				'[' . $level . '] ' . $this->interpolate($message, $context) . PHP_EOL
@@ -43,7 +50,7 @@ class Resque_Log extends Psr\Log\AbstractLogger
 	/**
 	 * Fill placeholders with the provided context
 	 * @author Jordi Boggiano j.boggiano@seld.be
-	 * 
+	 *
 	 * @param  string  $message  Message to be logged
 	 * @param  array   $context  Array of variables to use in message
 	 * @return string
@@ -55,7 +62,7 @@ class Resque_Log extends Psr\Log\AbstractLogger
 		foreach ($context as $key => $val) {
 			$replace['{' . $key . '}'] = $val;
 		}
-	
+
 		// interpolate replacement values into the message and return
 		return strtr($message, $replace);
 	}

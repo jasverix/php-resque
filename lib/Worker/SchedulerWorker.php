@@ -1,5 +1,11 @@
 <?php
-declare(ticks = 1);
+
+declare(ticks=1);
+
+namespace Resque\Worker;
+
+use Resque\Scheduler;
+use Resque\Event;
 
 /**
  * ResqueScheduler worker to handle scheduling of delayed tasks.
@@ -9,7 +15,7 @@ declare(ticks = 1);
  * @copyright	(c) 2012 Chris Boulton
  * @license		http://www.opensource.org/licenses/mit-license.php
  */
-class ResqueScheduler_Worker
+class SchedulerWorker
 {
 	public const LOG_NONE = 0;
 	public const LOG_NORMAL = 1;
@@ -53,10 +59,10 @@ class ResqueScheduler_Worker
 		$this->registerSigHandlers();
 
 		while (true) {
-			if($this->shutdown) {
+			if ($this->shutdown) {
 				break;
 			}
-			if(!$this->paused) {
+			if (!$this->paused) {
 				$this->handleDelayedItems();
 			}
 			$this->sleep();
@@ -69,11 +75,11 @@ class ResqueScheduler_Worker
 	 * Searches for any items that are due to be scheduled in Resque
 	 * and adds them to the appropriate job queue in Resque.
 	 *
-	 * @param DateTime|int $timestamp Search for any items up to this timestamp to schedule.
+	 * @param \DateTime|int $timestamp Search for any items up to this timestamp to schedule.
 	 */
 	public function handleDelayedItems($timestamp = null)
 	{
-		while (($oldestJobTimestamp = ResqueScheduler::nextDelayedTimestamp($timestamp)) !== false) {
+		while (($oldestJobTimestamp = Scheduler::nextDelayedTimestamp($timestamp)) !== false) {
 			$this->updateProcLine('Processing Delayed Items');
 			$this->enqueueDelayedItemsForTimestamp($oldestJobTimestamp);
 		}
@@ -85,14 +91,15 @@ class ResqueScheduler_Worker
 	 * Searches for all items for a given timestamp, pulls them off the list of
 	 * delayed jobs and pushes them across to Resque.
 	 *
-	 * @param DateTime|int $timestamp Search for any items up to this timestamp to schedule.
+	 * @param \DateTime|int $timestamp Search for any items up to this timestamp to schedule.
 	 */
 	public function enqueueDelayedItemsForTimestamp($timestamp)
 	{
-		while ($item = ResqueScheduler::nextItemForTimestamp($timestamp)) {
-			$this->log('queueing ' . $item['class'] . ' in ' . $item['queue'] .' [delayed]');
+		$item = null;
+		while ($item = Scheduler::nextItemForTimestamp($timestamp)) {
+			$this->log('queueing ' . $item['class'] . ' in ' . $item['queue'] . ' [delayed]');
 
-			Resque_Event::trigger('beforeDelayedEnqueue', array(
+			Event::trigger('beforeDelayedEnqueue', array(
 				'queue' => $item['queue'],
 				'class' => $item['class'],
 				'args'  => $item['args'],
@@ -123,8 +130,8 @@ class ResqueScheduler_Worker
 	 */
 	private function updateProcLine($status)
 	{
-		if(function_exists('setproctitle')) {
-			setproctitle('resque-scheduler-' . ResqueScheduler::VERSION . ': ' . $status);
+		if (function_exists('setproctitle')) {
+			setproctitle('resque-scheduler-' . Scheduler::VERSION . ': ' . $status);
 		}
 	}
 
@@ -135,11 +142,10 @@ class ResqueScheduler_Worker
 	 */
 	public function log($message)
 	{
-		if($this->logLevel == self::LOG_NORMAL) {
+		if ($this->logLevel == self::LOG_NORMAL) {
 			fwrite(STDOUT, "*** " . $message . "\n");
-		}
-		else if($this->logLevel == self::LOG_VERBOSE) {
-			fwrite(STDOUT, "** [" . strftime('%T %Y-%m-%d') . "] " . $message . "\n");
+		} elseif ($this->logLevel == self::LOG_VERBOSE) {
+			fwrite(STDOUT, "** [" . date('H:i:s Y-m-d') . "] " . $message . "\n");
 		}
 	}
 
@@ -152,7 +158,7 @@ class ResqueScheduler_Worker
 	 */
 	private function registerSigHandlers()
 	{
-		if(!function_exists('pcntl_signal')) {
+		if (!function_exists('pcntl_signal')) {
 			return;
 		}
 
