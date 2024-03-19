@@ -381,12 +381,12 @@ class ResqueWorker
 		return false;
 	}
 
-    protected function reserveJob(string $queue): ?Resque_Job
+    protected function reserveJob(string $queue): ?JobHandler
     {
         return JobHandler::reserve($queue) ?: null;
     }
 
-    protected function reserveJobBlocking(array $queues, ?int $timeout): ?Resque_Job
+    protected function reserveJobBlocking(array $queues, ?int $timeout): ?JobHandler
     {
         return JobHandler::reserveBlocking($queues, $timeout) ?: null;
     }
