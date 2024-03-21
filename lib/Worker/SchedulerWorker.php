@@ -4,6 +4,7 @@ declare(ticks=1);
 
 namespace Resque\Worker;
 
+use Resque\Resque;
 use Resque\Scheduler;
 use Resque\Event;
 
@@ -103,7 +104,7 @@ class SchedulerWorker
 				'queue' => $item['queue'],
 				'class' => $item['class'],
 				'args'  => $item['args'],
-                'timestamp' => (int)($timestamp instanceof DateTime ? $timestamp->getTimestamp() : $timestamp),
+                'timestamp' => (int)($timestamp instanceof \DateTime ? $timestamp->getTimestamp() : $timestamp),
 			));
 
 			$payload = array_merge(array($item['queue'], $item['class']), $item['args']);
