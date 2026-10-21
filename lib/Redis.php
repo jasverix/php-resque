@@ -15,7 +15,7 @@ use InvalidArgumentException;
  * @author		Chris Boulton <chris@bigcommerce.com>
  * @license		http://www.opensource.org/licenses/mit-license.php
  *
- * @method array|null    blpop(string $keyN, int $timeout)
+ * @method array|null    blpop(string|string[] $keyN, int $timeout)
  * @method int           decrby(string $key, int $decrement)
  * @method int           del(string|array ...$keys)
  * @method int           exists(string $key)
@@ -27,7 +27,7 @@ use InvalidArgumentException;
  * @method string|null   lpop(string $key)
  * @method array         lrange(string $key, int $start, int $stop)
  * @method int           lrem(string $key, int $count, mixed $value)
- * @method string        ping(string|null $name = null)
+ * @method string|bool   ping(string|null $name = null)
  * @method string|null   rpop(string $key)
  * @method string|null   rpoplpush(string $source, string $destination)
  * @method int           rpush(string $key, mixed $value, mixed $valueN = null)
@@ -146,7 +146,7 @@ class Redis
 	}
 
 	/**
-	 * @param string|array $server A DSN or array
+	 * @param string|array|object $server A DSN or array
 	 * @param int $database A database number to select. However, if we find a valid database number in the DSN the
 	 *                      DSN-supplied value will be used instead and this parameter is ignored.
 	 * @param object $client Optional Credis_Cluster or Credis_Client instance instantiated by you
@@ -159,7 +159,7 @@ class Redis
 			} elseif (is_object($server)) {
 				$this->driver = $server;
 			} elseif (is_array($server)) {
-				$this->driver = new Credis_Cluster($server);
+				$this->driver = new Credis_Cluster(null, $server);
 			} else {
 				list($host, $port, $dsnDatabase, $user, $password, $options) = self::parseDsn($server);
 				// $user is not used, only $password
@@ -227,7 +227,7 @@ class Redis
 		$parts = parse_url($dsn);
 
 		// Check the URI scheme
-		$validSchemes = array('redis', 'tcp');
+		$validSchemes = array('redis', 'tcp', 'rediss', 'tls', 'ssl');
 		if (isset($parts['scheme']) && ! in_array($parts['scheme'], $validSchemes)) {
 			throw new InvalidArgumentException("Invalid DSN. Supported schemes are " . implode(', ', $validSchemes));
 		}
@@ -270,8 +270,15 @@ class Redis
 			$pass = isset($parts['pass']) ? $parts['pass'] : false;
 		}
 
+		$host = $parts['host'];
+
+		if (isset($parts['scheme']) && in_array($parts['scheme'], [ 'tls', 'ssl', 'rediss' ])) {
+			$scheme = $parts['scheme'] === 'rediss' ? 'tls' : $parts['scheme'];
+			$host = $scheme . '://' . $parts['host'];
+		}
+
 		return array(
-			$parts['host'],
+			$host,
 			$port,
 			$database,
 			$user,
